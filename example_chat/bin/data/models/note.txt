@@ -1,0 +1,13 @@
+Place the following models in this folder:
+
+-DeepSeek-R1-0528-Qwen3-8B-Q5_K_M.gguf:
+https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF/resolve/main/DeepSeek-R1-0528-Qwen3-8B-Q5_K_M.gguf
+
+-phi-4-Q4_K_S.gguf:
+https://huggingface.co/bartowski/phi-4-GGUF/resolve/main/phi-4-Q4_K_S.gguf
+
+-Teuken-7B-instruct-commercial-v0.4.Q4_K_M.gguf:
+https://huggingface.co/beansandbytes/Teuken-7B-instruct-commercial-v0.4-Q4_K_M-GGUF/resolve/main/teuken-7b-instruct-commercial-v0.4-q4_k_m.gguf
+
+NB: Of course, you can use any gguf model of your choice, provided that you make sure to set the correct chat templates in the TemplateManager. 
+
