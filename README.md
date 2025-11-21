@@ -1,4 +1,4 @@
-# ofxLlama
+# ofxLlamaCpp
 
 A lightweight openFrameworks addon for running LLM inference directly in C++ using [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
