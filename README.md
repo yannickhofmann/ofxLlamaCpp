@@ -47,7 +47,7 @@ chmod +x build_llama_static.sh
 
 ## Models
 
-Please use models in GGUF, a binary format that is optimized for quick loading and saving of models, making it highly efficient for inference purposes. Don't forget to get a GGUF model (e.g., from HuggingFace). Models in GGUF format need to get dropped into `bin/data`.
+Please use models in GGUF, a binary format that is optimized for quick loading and saving of models, making it highly efficient for inference purposes. Don't forget to get a GGUF model (e.g., from HuggingFace). Models in GGUF format need to get dropped into the `bin/data` folders of the examples.
 
 ## License
 
