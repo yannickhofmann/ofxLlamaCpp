@@ -2,7 +2,7 @@
 
 A lightweight openFrameworks addon for running LLM inference directly in C++ using [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
-## What is ofxLlama?
+## What is ofxLlamaCpp?
 
 ofxLlama brings efficient large-language-model inference into the openFrameworks ecosystem. It acts as a simple bridge between:
 
