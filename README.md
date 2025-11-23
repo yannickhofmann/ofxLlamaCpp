@@ -79,7 +79,7 @@ Once the static library is compiled and the GGUF models are in place, you can bu
 Navigate into the example folder you wish to build (e.g., `example_chat`):
 
 ```bash
-cd scripts/example_chat
+cd example_chat
 ```
 
 Run **make** to compile the openFrameworks example:
