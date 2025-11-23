@@ -4,7 +4,7 @@ A lightweight openFrameworks addon for running LLM inference directly in C++ usi
 
 ## What is ofxLlamaCpp?
 
-ofxLlama brings efficient large-language-model inference into the openFrameworks ecosystem. It acts as a simple bridge between:
+ofxLlamaCpp brings large-language-model inference into the openFrameworks ecosystem. It acts as a simple bridge between:
 
 *   **openFrameworks (oF)**
 *   **llama.cpp** (C/C++ inference engine)
@@ -17,6 +17,7 @@ This makes it possible to integrate LLMs into creative coding projects, interact
 ofxLlama has been validated on:
 
 *   Ubuntu 24.04.3 LTS
+*   macOS (Apple Silicon M2)
 *   openFrameworks:
     *   `of_v0.12.0_linux64gcc6_release`
     *   `of_v0.12.1_linux64_gcc6_release`
@@ -30,6 +31,31 @@ ofxLlama has been validated on:
 *   **minja.hpp**
     A minimalistic C++ Jinja-style templating engine used to prepare LLM chat prompts.
     [https://github.com/google/minja](https://github.com/google/minja)
+
+### Build Tool Dependency
+
+* **CMake**
+    Required for configuring and building the external **llama.cpp** and **minja.hpp** libraries that this addon utilizes. CMake is cross-platform and must be installed before
+    attempting to build these libraries
+
+**Ubuntu / Debian (Linux):**
+
+```bash
+sudo apt update
+sudo apt install cmake
+```
+
+**macOS (OS X):**
+
+```bash
+brew install cmake
+```
+
+### Example Dependencies
+
+* **ofxDropdown** (Developed by [roymacdonald](https://github.com/roymacdonald)) is used in the *example_chat** to provide a graphical user interface for selecting LLM models and chat templates via a dropdown menu.
+    [https://github.com/roymacdonald/ofxDropdown](https://github.com/roymacdonald/ofxDropdown)
+
 
 ## Setup
 
@@ -45,9 +71,39 @@ chmod +x build_llama_static.sh
 ./build_llama_static.sh
 ```
 
+
+### Build and Run the Examples
+
+Once the static library is compiled and the GGUF models are in place, you can build and run the example projects.
+
+Navigate into the example folder you wish to build (e.g., `example_chat`):
+
+```bash
+cd scripts/example_chat
+```
+
+Run **make** to compile the openFrameworks example:
+
+```bash
+make
+```
+
+Run the release executable:
+
+```bash
+make RunRelease
+```
+
+
 ## Models
 
 Please use models in GGUF, a binary format that is optimized for quick loading and saving of models, making it highly efficient for inference purposes. Don't forget to get a GGUF model (e.g., from HuggingFace). Models in GGUF format need to get dropped into the `bin/data` folders of the examples.
+
+
+## Known issues
+
+*   Slow CPU inference with large models
+*   Increasing latency due to In-Context Memory
 
 ## License
 

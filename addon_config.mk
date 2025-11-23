@@ -1,6 +1,5 @@
-# This file has been generated to make the ofxLlamaCpp addon compatible with the
-# openFrameworks Makefile-based build system. The original addon only provided
-# a CMake-based build setup.
+# ofxLlamaCpp addon_config.mk
+# Cross-platform configuration for Linux and macOS
 
 meta:
 	ADDON_NAME = ofxLlamaCpp
@@ -10,12 +9,14 @@ meta:
 	ADDON_URL = tba
 
 common:
-	# Addon dependencies, if any
+	# Addon dependencies
 	# ADDON_DEPENDENCIES = 
 
-	# Include search paths
+	# Include search paths - platform-independent
 	ADDON_INCLUDES += libs/llama.cpp/include
+
 	ADDON_INCLUDES += libs/minja/include
+
 
 	# Source files
 	ADDON_SOURCES = src/ofxLlamaCpp.cpp
@@ -23,15 +24,11 @@ common:
 	ADDON_SOURCES += libs/llama.cpp/ggml/src/ggml-opt.cpp
 	ADDON_SOURCES += libs/llama.cpp/ggml/src/ggml-backend-reg.cpp
 
-	# ggml sources
+	# Common compiler flags
+	ADDON_CPPFLAGS = -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DGGML_SCHED_MAX_COPIES=4 -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -DGGML_USE_CPU
+	ADDON_CPPFLAGS += -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter
 
-	# llama sources
-
-	# common sources
-
-	# Compiler flags
-		ADDON_CPPFLAGS = -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DGGML_SCHED_MAX_COPIES=4 -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -DGGML_USE_CPU
-		ADDON_CPPFLAGS += -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter
+	# Addon Library dependencies
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libllama.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-cpu.a
@@ -39,6 +36,7 @@ common:
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcommon.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcpp-httplib.a
 
+# --- Platform-specific configuration for LINUX (x86_64) ---
 linux64:
 	# any special flag that should be passed to the linker when using this
 	# addon, also used for system libraries with -lname
@@ -49,3 +47,31 @@ linux64:
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-base.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcommon.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcpp-httplib.a
+
+# --- Platform-specific configuration for MACOS ---
+osx:
+	# Library path for macOS (assuming Apple Silicon arm64)
+	LLAMA_LIB_PATH = libs/llama.cpp/lib/osx-arm64
+	
+	# Compiler flags for macOS to enable Metal and Accelerate
+	ADDON_CPPFLAGS += -DGGML_USE_METAL -DGGML_METAL_NDEBUG -DGGML_USE_ACCELERATE
+
+	# Linker flags for macOS
+	ADDON_LDFLAGS += -ObjC
+
+	# Static libraries for macOS - ORDER MATTERS!
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libllama.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-metal.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-blas.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-cpu.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-base.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libcommon.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libcpp-httplib.a
+
+	# System Frameworks for macOS
+	ADDON_LIBS += -framework Accelerate
+	ADDON_LIBS += -framework Foundation
+	ADDON_LIBS += -framework Metal
+	ADDON_LIBS += -framework MetalKit
+	ADDON_LIBS += -framework CoreGraphics

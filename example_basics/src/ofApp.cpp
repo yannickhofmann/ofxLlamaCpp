@@ -29,10 +29,10 @@ void ofApp::setup() {
     // 1. Load the model.
     //    You can download other models and place them in the bin/data folder.
     //    Ensure the path to the model is correct.
-    if (llama.loadModel("data/Teuken-7B-instruct-commercial-v0.4.Q4_K_M.gguf", 2048)) {
+    if (llama.loadModel(ofToDataPath("Teuken-7B-instruct-commercial-v0.4.Q4_K_M.gguf"), 2048)) {
         ofLogNotice() << "Model loaded successfully.";
         modelLoaded = true;
-
+        
         // 2. Set generation parameters (optional).
         //    Temperature controls the randomness of the output. Higher values make it more random.
         llama.setTemperature(0.8f);

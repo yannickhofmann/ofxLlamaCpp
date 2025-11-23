@@ -45,7 +45,7 @@ void ofApp::setup() {
 
     // --- Model Loading ---
     // Scan the 'data/models' directory for .gguf files
-    ofDirectory dir("models");
+    ofDirectory dir(ofToDataPath("models"));
     dir.allowExt("gguf");
     dir.listDir();
     dir.sort();
@@ -118,7 +118,7 @@ void ofApp::onModelChange(string &displayName) {
     if (displayNameToFullFileName.count(displayName)) {
         model = displayNameToFullFileName[displayName];
     }
-    string fullPath = "data/models/" + model;
+    string fullPath = ofToDataPath("models/" + model);
     ofLogNotice() << "Loading model: " << fullPath;
 
     // Load the model using ofxLlamaCpp
