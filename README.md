@@ -14,7 +14,7 @@ This makes it possible to integrate LLMs into creative coding projects, interact
 
 ## Tested Environments
 
-ofxLlama has been validated on:
+ofxLlamaCpp has been validated on:
 
 *   Ubuntu 24.04.3 LTS
 *   macOS (Apple Silicon M2)
