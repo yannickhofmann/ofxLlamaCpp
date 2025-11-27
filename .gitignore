@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# openFrameworks build folders
+bin/
+obj/
+
+# compiler output
+*.o
+*.out
+*.log
+
+# temporary editor files
+*.swp
+*~
