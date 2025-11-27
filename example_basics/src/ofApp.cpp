@@ -1,3 +1,14 @@
+/*
+ * ofxLlamaCpp
+ *
+ * Copyright (c) 2025 Yannick Hofmann
+ * <contact@yannickhofmann.de>
+ *
+ * BSD Simplified License. 
+ * For information on usage and redistribution, and for a DISCLAIMER OF ALL
+ * WARRANTIES, see the file, "LICENSE.txt," in this distribution.
+ */
+
 #include "ofApp.h"
 #include "ofxLlamaCpp.h"
 
@@ -11,18 +22,14 @@ void ofApp::setup() {
     modelLoaded = false;
     output.clear();
 
-    //--------------------------------------------------------------
-    // MODEL PATH + CONTEXT
-    //--------------------------------------------------------------
+    // Model path & context
     const std::string modelPath =
         ofToDataPath("Teuken-7B-instruct-commercial-v0.4.Q4_K_M.gguf");
     const int contextSize = 2048;
 
     ofLogNotice() << "Loading model (CPU pass #1): " << modelPath;
 
-    //--------------------------------------------------------------
-    //  PASS 1 – CPU LOAD (STABLE ON M2)
-    //--------------------------------------------------------------
+    // CPU load
     if (!llama.loadModel(modelPath, contextSize)) {
         ofLogError() << "CPU load failed.";
         output = "Failed to load model.";
@@ -31,18 +38,15 @@ void ofApp::setup() {
 
     ofLogNotice() << "CPU load OK.";
 
-    //--------------------------------------------------------------
-    // ENABLE METAL GPU OFFLOAD
-    //--------------------------------------------------------------
+    // Enable GPU offload
     llama.setN_GpuLayers(llama.getNLayers());  // offload all layers that are supported
     llama.setOffloadKqv(true);
 
-    ofLogNotice() << "Enabling Metal GPU offload...";
+    ofLogNotice() << "Enabling GPU offload...";
     ofLogNotice() << "n_gpu_layers = " << llama.getN_GpuLayers();
 
-    //--------------------------------------------------------------
-    // PASS 2 – GPU LOAD (WORKS ON M2)
-    //--------------------------------------------------------------
+
+    // GPU load
     if (!llama.loadModel(modelPath, contextSize)) {
         ofLogError() << "GPU load failed.";
         output = "Failed to load model with GPU offload.";
@@ -52,17 +56,13 @@ void ofApp::setup() {
     ofLogNotice() << "Model successfully loaded with Metal offload.";
     modelLoaded = true;
 
-    //--------------------------------------------------------------
-    // SAMPLER SETTINGS
-    //--------------------------------------------------------------
+    // Sampler settings
     llama.setTemperature(0.8f);
     llama.setTopK(40);
     llama.addStopWord("User:");
     llama.addStopWord("Assistant:");
 
-    //--------------------------------------------------------------
-    // START GENERATION
-    //--------------------------------------------------------------
+    // Start generation
     prompt = "What is openFrameworks?\n\nAssistant:";
     llama.startGeneration(prompt, 1024);
 
@@ -91,7 +91,7 @@ void ofApp::draw() {
         clean = clean.substr(10);
     }
 
-    // wrap text
+    // Wrap text
     std::string wrapped = wrapString(clean, textWidth);
     ofDrawBitmapString(wrapped, margin, 100);
 
