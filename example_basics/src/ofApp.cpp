@@ -1,134 +1,158 @@
 #include "ofApp.h"
-#include "ofUtils.h"
-#include <algorithm>
-#include <iomanip>
+#include "ofxLlamaCpp.h"
 
 //--------------------------------------------------------------
 void ofApp::setup() {
+
+    // Basic window setup
     ofBackground(0);
     ofSetColor(255);
     ofSetFrameRate(60);
 
     modelLoaded = false;
 
-    std::string modelPath = ofToDataPath("Teuken-7B-instruct-commercial-v0.4.Q4_K_M.gguf");
-    int contextSize = 2048;
+    // Path to GGUF file
+    const std::string modelPath = ofToDataPath("Teuken-7B-instruct-commercial-v0.4.Q4_K_M.gguf");
+    const int contextSize = 2048;
 
-    ofLogNotice() << "Loading model (CPU-pass #1): " << modelPath;
+    // Configure GPU offloading (optional, safe across platforms)
+    llama.setN_GpuLayers(9999);   // "Maximum" as wrapper will clamp internally
+    llama.setOffloadKqv(true);    // Recommended for speed
 
-    //--------------------------------------------------------------
-    // FIRST LOAD: CPU ONLY
-    // This matches what your WORKING EXAMPLE does.
-    //--------------------------------------------------------------
+    // Load the model once (CPU/CUDA/Metal auto-detect)
+    ofLogNotice() << "Loading model: " << modelPath;
+
     if (!llama.loadModel(modelPath, contextSize)) {
-        modelLoaded = false;
-        output = "Failed to load model on first pass.";
-        ofLogError() << "Model load (CPU) failed!";
+        ofLogError() << "Model load failed.";
+        output = "Failed to load model.";
         return;
     }
 
-    ofLogNotice() << "Model loaded (CPU) successfully.";
-
-    //--------------------------------------------------------------
-    // APPLY GPU SETTINGS NOW (after CPU-load)
-    //--------------------------------------------------------------
-    llama.setN_GpuLayers(llama.getNLayers());   // offload all layers
-    llama.setOffloadKqv(true);
-
-    ofLogNotice() << "ofxLlamaCpp: n_gpu_layers set to: " << llama.getN_GpuLayers();
-    ofLogNotice() << "ofxLlamaCpp: offload_kqv set to: 1";
-
-    //--------------------------------------------------------------
-    // SECOND LOAD: GPU OFFLOAD
-    // Now that Metal settings are active, llama.cpp will offload.
-    //--------------------------------------------------------------
-    ofLogNotice() << "Reloading model (GPU-pass #2)...";
-
-    if (!llama.loadModel(modelPath, contextSize)) {
-        modelLoaded = false;
-        output = "Failed to load model on second pass (GPU).";
-        ofLogError() << "Model reload (GPU) failed!";
-        return;
-    }
-
-    ofLogNotice() << "Model loaded successfully with GPU offload.";
     modelLoaded = true;
+    ofLogNotice() << "Model loaded. GPU offload auto-selected.";
 
-    //--------------------------------------------------------------
-    // SET GENERATION PARAMETERS
-    //--------------------------------------------------------------
+    // Configure sampler and start the first generation
     llama.setTemperature(0.8f);
     llama.setTopK(40);
 
+    // Stop sequences (useful for chat-like outputs)
     llama.addStopWord("User:");
     llama.addStopWord("Assistant:");
 
-    //--------------------------------------------------------------
-    // START GENERATION
-    //--------------------------------------------------------------
+    // Initial question
     prompt = "What is openFrameworks?\n\nAssistant:";
-    llama.startGeneration(prompt, 1024);
 
-    ofLogNotice() << "Started generation for prompt: " << prompt;
+    // Start async generation
+    llama.startGeneration(prompt, 1024);
 }
 
 //--------------------------------------------------------------
 void ofApp::update() {
-    if (!modelLoaded) return;
-    output += llama.getNewOutput();
+
+    // Collect newly generated text (streamed token-by-token)
+    if (modelLoaded) {
+        output += llama.getNewOutput();
+    }
 }
 
 //--------------------------------------------------------------
 void ofApp::draw() {
+
+    float margin = ofGetWidth() * 0.05f;
+    float textWidth = ofGetWidth() - margin * 2;
+
+    // Draw prompt
     ofSetColor(255);
-    ofDrawBitmapString("Prompt: " + prompt, 20, 50);
+    ofDrawBitmapString("Prompt: " + prompt, margin, 50);
 
-    if (modelLoaded) {
-        ofSetColor(173, 255, 47);
-    } else {
-        ofSetColor(255, 0, 0);
+    // Clean assistant prefix if the model outputs it
+    std::string text = output;
+    if (startsWith(text, "Assistant:")) {
+        text = text.substr(10);
     }
 
-    std::string textToDraw = output;
-    if (startsWith(textToDraw, "Assistant:")) {
-        textToDraw = textToDraw.substr(std::string("Assistant:").length());
-    }
+    // Wrap output text to window width
+    std::string wrapped = wrapString(text, textWidth);
+    ofDrawBitmapString(wrapped, margin, 100);
 
-    std::string wrappedOutput = wrapString(textToDraw, ofGetWidth() / 2);
-    ofDrawBitmapString(wrappedOutput, 20, 100);
-
-    ofSetColor(255);
-
-    if (llama.isGenerating()) {
-        ofDrawBitmapString("Generating...", 20, ofGetHeight() - 30);
-    } else if (modelLoaded) {
-        ofDrawBitmapString("Generation finished.", 20, ofGetHeight() - 30);
-    }
+    // Status indicator
+    ofDrawBitmapString(
+        llama.isGenerating() ? "Generating…" : "Finished.",
+        margin, ofGetHeight() - 30
+    );
 }
 
 //--------------------------------------------------------------
 std::string ofApp::wrapString(std::string text, int width) {
-    std::string wrapped, currentLine;
+
     ofBitmapFont font;
+    std::string wrapped, line;
 
-    std::replace(text.begin(), text.end(), '\n', ' ');
-    std::vector<std::string> words = ofSplitString(text, " ", true, true);
+    // Replace newlines with spaces (makes wrapping easier)
+    for (char &c : text) {
+        if (c == '\n') c = ' ';
+    }
 
-    for (auto &word : words) {
-        std::string test = currentLine.empty() ? word : currentLine + " " + word;
-        if (font.getBoundingBox(test, 0, 0).width > width) {
-            wrapped += currentLine + "\n";
-            currentLine = word;
+    // Split into words
+    std::vector<std::string> words;
+    std::string temp;
+
+    for (char c : text) {
+        if (c == ' ') {
+            if (!temp.empty()) {
+                words.push_back(temp);
+                temp.clear();
+            }
         } else {
-            currentLine = test;
+            temp += c;
+        }
+    }
+    if (!temp.empty()) words.push_back(temp);
+
+    // Merge words into wrapped lines
+    for (const std::string &w : words) {
+        const std::string test = line.empty() ? w : line + " " + w;
+
+        if (font.getBoundingBox(test, 0, 0).width > width) {
+            wrapped += line + "\n";
+            line = w;
+        } else {
+            line = test;
         }
     }
 
-    wrapped += currentLine;
+    wrapped += line;
     return wrapped;
 }
 
 //--------------------------------------------------------------
 bool ofApp::startsWith(const std::string &text, const std::string &prefix) {
-    return text.rfind(prefix, 0) == 0;
+    return text.size() >= prefix.size() &&
+           text.compare(0, prefix.size(), prefix) == 0;
 }
+
+//--------------------------------------------------------------
+void ofApp::keyPressed(ofKeyEventArgs &args) {
+    if (args.key == OF_KEY_ESC) {
+        std::_Exit(0);
+    }
+}
+
+//--------------------------------------------------------------
+void ofApp::keyReleased(ofKeyEventArgs &args) {
+
+    if (args.key == ' ') {
+
+        // Stop current generation thread
+        llama.stopGeneration();
+
+        // Clear previous text
+        output.clear();
+
+        // Restart generation
+        llama.startGeneration(prompt, 1024);
+
+        ofLogNotice() << "Re-sent prompt: " << prompt;
+    }
+}
+
