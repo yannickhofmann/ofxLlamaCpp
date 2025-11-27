@@ -10,11 +10,10 @@ public:
     void keyPressed(ofKeyEventArgs &args);
     void keyReleased(ofKeyEventArgs &args);
 
-    // helper functions
+private:
     std::string wrapString(std::string text, int width);
     bool startsWith(const std::string &text, const std::string &prefix);
 
-    // model
     ofxLlamaCpp llama;
     bool modelLoaded = false;
 
