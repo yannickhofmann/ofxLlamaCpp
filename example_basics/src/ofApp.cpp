@@ -53,7 +53,7 @@ void ofApp::setup() {
         return;
     }
 
-    ofLogNotice() << "Model successfully loaded with Metal offload.";
+    ofLogNotice() << "Model successfully loaded with GPU offload.";
     modelLoaded = true;
 
     // Sampler settings
