@@ -64,6 +64,10 @@ private:
     std::shared_ptr<ofxDropdown> modelDropdown; // Dropdown for selecting the AI model.
     std::shared_ptr<ofxDropdown> templateDropdown; // Dropdown for selecting the chat template.
     std::map<std::string, std::string> displayNameToFullFileName; // Maps user-friendly model names to their file paths.
+    float guiFixedX; // Stores the initial X position of the GUI for stable layout.
+    float guiFixedWidth; // Stores the initial width of the GUI for stable layout.
+    ofxLabel gpuStatusLabel; // Label to display GPU offload status within the GUI.
+
 
     // Callback for when the AI model is changed via the dropdown.
     // param displayName The user-friendly name of the selected model.

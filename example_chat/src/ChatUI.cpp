@@ -41,7 +41,7 @@ void ChatUI::draw(const ofRectangle& viewport,
     
     // The main GUI panel (ofxGui) is drawn in ofApp, not here.
     // We estimate its height to correctly position our chat window below it.
-    float guiHeight = 100;
+    float guiHeight = 150;
     float chatAreaTopOffset = guiHeight + 30;
 
     // Define the main rectangular area for displaying chat messages.

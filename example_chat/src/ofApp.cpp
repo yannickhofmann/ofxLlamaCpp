@@ -85,7 +85,16 @@ void ofApp::setup() {
     gui.add(templateDropdown.get());
 
     gui.add(stopButton.setup("Stop Generation"));
-    gui.setPosition(20, gui.getPosition().y);
+
+    // Add GPU status label to the GUI
+    gpuStatusLabel.setup("GPU Layers", "N/A"); // Initialize with N/A, assuming ofxLabel adds a colon
+    gui.add(&gpuStatusLabel); // Add the label to the GUI panel
+    gui.setPosition(20, 20);
+
+    // Store fixed GUI dimensions after setup for stable layout
+    guiFixedX = gui.getPosition().x;
+    guiFixedWidth = gui.getWidth();
+
 
     // --- Default Selections ---
     // Set a default template to ensure the application starts in a valid state
@@ -125,22 +134,30 @@ void ofApp::onModelChange(string &displayName) {
     if (llama.loadModel(fullPath, 2048)) { // 2048 context size
         ready = true;
         
-        // Set generation parameters
-        llama.setTemperature(0.8f);
-        llama.setTopP(0.9f);
-        llama.setTopK(40);
-        llama.setRepeatPenalty(1.1f);
         
-        // Re-apply stop words based on the currently selected template
-        string t = templateDropdown->selectedValue.get();
-        onTemplateChange(t);
+        // Set the number of layers to offload to the GPU.
+        // By default, offload all layers.
+        llama.setN_GpuLayers(llama.getNLayers());
+        llama.setOffloadKqv(true);
+        
+        // Update the GPU status label
+        gpuStatusLabel.setup("GPU Layers", ofToString(llama.getN_GpuLayers()));
+        
+    // Set generation parameters
+    llama.setTemperature(0.8f);
+    llama.setTopP(0.9f);
+    llama.setTopK(40);
+    llama.setRepeatPenalty(1.1f);
+    
+    // Re-apply stop words based on the currently selected template
+    string t = templateDropdown->selectedValue.get();
+    onTemplateChange(t);
 
-        ofLogNotice() << "Model loaded successfully.";
-    } else {
-        ofLogError() << "Model load failed!";
+            ofLogNotice() << "Model loaded successfully.";
+        } else { // Added this else block for completeness, assuming model load failure
+            ofLogError() << "Model load failed!";
+        }
     }
-}
-
 //--------------------------------------------------------------
 void ofApp::onTemplateChange(string &t) {
     // Clear existing stop words before applying new ones
@@ -346,15 +363,28 @@ void ofApp::draw() {
     // Draw the main GUI panel
     gui.draw();
 
-    // Delegate all chat interface drawing to the ChatUI class
+    // Use fixed GUI dimensions and position for chat window calculation reference
+    float horizontalGap = 60; // Desired gap between GUI and chat window
+    float verticalPadding = 20; // Top and bottom padding for chat window and overall UI
+
+    ofRectangle chatViewport = ofGetCurrentViewport();
+
+    // Calculate chat window position and dimensions based on fixed GUI area
+    chatViewport.x = guiFixedX + guiFixedWidth + horizontalGap; // Start to the right of fixed GUI + gap
+    chatViewport.y = verticalPadding; // Start from top, with padding
+    chatViewport.width = ofGetWidth() - chatViewport.x - verticalPadding; // Extend to right edge, with padding
+    chatViewport.height = ofGetHeight() - 2 * verticalPadding; // Extend full height, with top/bottom padding
+
     mChatUI.draw(
-        ofGetCurrentViewport(),
+        chatViewport, // Pass the adjusted viewport
         chatHistory,
         input,
         currentState,
         ready,
         ready ? llama.getContextFillRatio() : 0.0f // Pass context fill ratio for display
     );
+
+
 }
 
 
@@ -417,3 +447,5 @@ void ofApp::stopGeneration() {
         }
     }
 }
+
+

@@ -14,6 +14,7 @@
 #include "ofMain.h" // Includes core OpenFrameworks functionalities
 
 #include "../libs/llama.cpp/include/llama.h" // Includes the Llama.cpp library headers
+#include "../libs/llama.cpp/ggml/include/ggml-backend.h"
 
 #include <thread>     // For multi-threading operations
 #include <mutex>      // For protecting shared data in multi-threaded environments
@@ -40,10 +41,23 @@ public:
     // Checks if a model is currently loaded.
     bool isModelLoaded() const;
 
+    // Sets the number of layers to offload to the GPU.
+    void setN_GpuLayers(int n_gpu_layers_val);
+
     // Returns the vocabulary size of the loaded model.
     int getVocabSize() const;
     // Returns the context size of the loaded model.
     int getContextSize() const;
+    int getNLayers() const; // Returns the total number of layers in the loaded model.
+
+    // Sets whether to offload K, Q, V tensors to the GPU.
+    void setOffloadKqv(bool offload_kqv_val);
+
+    // Returns the number of layers to offload to the GPU.
+    int getN_GpuLayers() const;
+    // Returns whether K, Q, V tensors are offloaded to the GPU.
+    bool getOffloadKqv() const;
+
 
     // -----------------------------
     // Generation Control
@@ -189,5 +203,11 @@ private:
     // Callback functions for token-by-token output and generation completion.
     std::function<void(const std::string&)> tokenCallback;
     std::function<void()> finishCallback;
+
+    int n_gpu_layers = 0; // Number of layers to offload to the GPU
+    bool offload_kqv = true; // Offload K, Q, V tensors to the GPU by default
+
+    ggml_backend_t cpu_backend = nullptr;
+    ggml_backend_t cuda_backend = nullptr;
 };
 

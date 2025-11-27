@@ -87,7 +87,11 @@ OF_ROOT = ../../..
 #
 #   Note: Leave a leading space when adding list items with the += operator
 ################################################################################
-# PROJECT_DEFINES = 
+PROJECT_DEFINES = 
+
+ifeq ($(TARGET_OS), osx)
+	PROJECT_DEFINES += LLAMA_METAL=1
+endif 
 
 ################################################################################
 # PROJECT CFLAGS

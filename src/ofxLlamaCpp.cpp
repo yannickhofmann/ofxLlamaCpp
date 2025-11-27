@@ -11,12 +11,33 @@
 
 #include "ofxLlamaCpp.h" // Include the main header for ofxLlama
 #include "ofLog.h"    // For OpenFrameworks logging utilities
+#include "../libs/llama.cpp/ggml/include/ggml-cpu.h"
+
+#ifdef __APPLE__
+#include "../libs/llama.cpp/ggml/include/ggml-metal.h"
+#else
+#include "../libs/llama.cpp/ggml/include/ggml-cuda.h"
+#endif
+
 
 // --------------------------------------------------------------
 // Constructor for ofxLlamaCpp.
 // Initializes the Llama.cpp backend. This must be called once before using Llama.cpp.
 ofxLlamaCpp::ofxLlamaCpp() {
     llama_backend_init();
+
+    // Explicitly register CPU backend
+    ggml_backend_register(ggml_backend_cpu_reg());
+
+#ifdef __APPLE__
+    ggml_backend_register(ggml_backend_metal_reg());
+#else
+    // Conditionally register CUDA backend if GPU offload is supported
+    // Temporarily removing the conditional check to ensure registration happens
+    // if CUDA is compiled in.
+    ggml_backend_register(ggml_backend_cuda_reg());
+    ggml_backend_dev_count(); // Force enumeration of CUDA devices
+#endif
 }
 
 // --------------------------------------------------------------
@@ -39,7 +60,22 @@ bool ofxLlamaCpp::loadModel(const std::string& path, int n_ctx_req) {
     // Set default model parameters, then load the model.
     // n_gpu_layers = 0 means no GPU offloading by default.
     llama_model_params mp = llama_model_default_params();
-    mp.n_gpu_layers = 0; 
+    mp.n_gpu_layers = this->n_gpu_layers;
+
+#ifdef __APPLE__
+    ggml_backend_dev_t cuda_dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_GPU);
+    if (cuda_dev != nullptr) {
+        static std::vector<ggml_backend_dev_t> devices_list;
+        devices_list.clear();
+        devices_list.push_back(cuda_dev);
+        devices_list.push_back(nullptr); // Null-terminate the list
+        mp.devices = devices_list.data();
+    } else {
+        if (this->n_gpu_layers > 0) {
+            ofLogWarning("ofxLlamaCpp") << "GPU offloading requested but no CUDA device found. Falling back to CPU.";
+        }
+    }
+#endif
 
     model = llama_model_load_from_file(path.c_str(), mp);
     if (!model) {
@@ -56,6 +92,7 @@ bool ofxLlamaCpp::loadModel(const std::string& path, int n_ctx_req) {
     cp.n_batch = 512; // Batch size for parallel processing
     cp.n_ubatch = 1; // Unbatch size
     cp.n_threads = std::thread::hardware_concurrency(); // Use all available hardware threads
+    cp.offload_kqv = this->offload_kqv; // Set offload_kqv from member variable
 
     // Initialize the Llama context from the loaded model.
     ctx = llama_init_from_model(model, cp);
@@ -103,6 +140,38 @@ int ofxLlamaCpp::getVocabSize() const {
 // Returns the context size of the loaded model.
 int ofxLlamaCpp::getContextSize() const {
     return ctx ? llama_n_ctx(ctx) : 0;
+}
+
+// --------------------------------------------------------------
+// Returns the total number of layers in the loaded model.
+int ofxLlamaCpp::getNLayers() const {
+    return model ? llama_model_n_layer(model) : 0;
+}
+
+// --------------------------------------------------------------
+// Sets the number of layers to offload to the GPU.
+void ofxLlamaCpp::setN_GpuLayers(int n_gpu_layers_val) {
+    n_gpu_layers = n_gpu_layers_val;
+    ofLogNotice("ofxLlamaCpp") << "n_gpu_layers set to: " << n_gpu_layers;
+}
+
+// --------------------------------------------------------------
+// Sets whether to offload K, Q, V tensors to the GPU.
+void ofxLlamaCpp::setOffloadKqv(bool offload_kqv_val) {
+    offload_kqv = offload_kqv_val;
+    ofLogNotice("ofxLlamaCpp") << "offload_kqv set to: " << offload_kqv;
+}
+
+// --------------------------------------------------------------
+// Returns the number of layers to offload to the GPU.
+int ofxLlamaCpp::getN_GpuLayers() const {
+    return n_gpu_layers;
+}
+
+// --------------------------------------------------------------
+// Returns whether K, Q, V tensors are offloaded to the GPU.
+bool ofxLlamaCpp::getOffloadKqv() const {
+    return offload_kqv;
 }
 
 // --------------------------------------------------------------
@@ -448,5 +517,3 @@ void ofxLlamaCpp::generationLoop() {
     generating = false; // Mark generation as complete
     if (finishCallback) finishCallback(); // Call the finish callback if set
 }
-
-

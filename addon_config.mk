@@ -25,28 +25,24 @@ common:
 	ADDON_SOURCES += libs/llama.cpp/ggml/src/ggml-backend-reg.cpp
 
 	# Common compiler flags
-	ADDON_CPPFLAGS = -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DGGML_SCHED_MAX_COPIES=4 -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -DGGML_USE_CPU
+	ADDON_CPPFLAGS = -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DGGML_SCHED_MAX_COPIES=4 -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter
 	ADDON_CPPFLAGS += -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter
 
-	# Addon Library dependencies
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libllama.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-cpu.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-base.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcommon.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcpp-httplib.a
+
 
 # --- Platform-specific configuration for LINUX (x86_64) ---
 linux64:
 	# any special flag that should be passed to the linker when using this
 	# addon, also used for system libraries with -lname
-	ADDON_LDFLAGS = -lpthread -fopenmp
+	ADDON_LDFLAGS = -lpthread -fopenmp -Wl,--no-as-needed -L/usr/local/cuda-12.4/targets/x86_64-linux/lib -lcudart -lcublas /lib/x86_64-linux-gnu/libcuda.so -Wl,--as-needed
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libllama.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-cpu.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-base.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcommon.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcpp-httplib.a
+	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-cuda.a
+	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-blas.a
 
 # --- Platform-specific configuration for MACOS ---
 osx:
