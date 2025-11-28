@@ -12,7 +12,7 @@ ofxLlamaCpp brings large-language-model inference into the openFrameworks ecosys
 
 This makes it possible to integrate LLMs into creative coding projects, interactive installations, experimental interfaces, and real-time generative applications—all running locally without Python or external dependencies.
 
-<video src="https://github.com/user-attachments/assets/f0dd1c6a-5de1-4df3-a424-42e662aac65b" autoplay loop muted playsinline style="max-width:100%; height:auto;"></video>
+![ofxLlamaCpp](https://github.com/user-attachments/assets/1eff6ff2-d54f-4cec-87d6-9fa6e923d5ee)
 
 ## Tested Environments
 
