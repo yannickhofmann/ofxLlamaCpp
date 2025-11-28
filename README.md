@@ -55,7 +55,7 @@ brew install cmake
 
 ### Example Dependencies
 
-* **ofxDropdown** (Developed by [roymacdonald](https://github.com/roymacdonald)) is used in the **example_chat** to provide a graphical user interface for selecting LLM models and chat templates via a dropdown menu.
+* **ofxDropdown** (developed by [roymacdonald](https://github.com/roymacdonald)) is used in the **example_chat** to provide a graphical user interface for selecting LLM models and chat templates via a dropdown menu.
     [https://github.com/roymacdonald/ofxDropdown](https://github.com/roymacdonald/ofxDropdown)
 
 
