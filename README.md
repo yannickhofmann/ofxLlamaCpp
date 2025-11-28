@@ -37,7 +37,7 @@ ofxLlamaCpp has been validated on:
 ### Build Tool Dependency
 
 * **CMake**
-    Required for configuring and building the external **llama.cpp** and **minja.hpp** libraries that this addon utilizes. CMake is cross-platform and must be installed before
+    is required for configuring and building the external **llama.cpp** and **minja.hpp** libraries that this addon utilizes. CMake is cross-platform and must be installed before
     attempting to build these libraries
 
 **Ubuntu / Debian (Linux):**
