@@ -14,9 +14,15 @@ common:
 
 	# Include search paths - platform-independent
 	ADDON_INCLUDES += libs/llama.cpp/include
+	ADDON_INCLUDES += libs/llama.cpp/ggml/include
 
 	ADDON_INCLUDES += libs/minja/include
-
+	# Prevent OF's automatic include parser from adding the full vendored trees.
+	# Keep only explicit include roots above to avoid oversized command lines.
+	ADDON_INCLUDES_EXCLUDE += libs/llama.cpp
+	ADDON_INCLUDES_EXCLUDE += libs/llama.cpp/%
+	ADDON_INCLUDES_EXCLUDE += libs/minja
+	ADDON_INCLUDES_EXCLUDE += libs/minja/%
 
 	# Source files
 	ADDON_SOURCES = src/ofxLlamaCpp.cpp
@@ -29,20 +35,35 @@ common:
 	ADDON_CPPFLAGS += -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter
 
 
-
 # --- Platform-specific configuration for LINUX (x86_64) ---
 linux64:
-	# any special flag that should be passed to the linker when using this
-	# addon, also used for system libraries with -lname
-	ADDON_LDFLAGS = -lpthread -fopenmp -Wl,--no-as-needed -L/usr/local/cuda-12.4/targets/x86_64-linux/lib -lcudart -lcublas /lib/x86_64-linux-gnu/libcuda.so -Wl,--as-needed
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libllama.a
+	# Auto-enable CUDA only if CUDA libs are present and CUDA+GPU are available.
+	# Can still be overridden manually via:
+	#   make OFX_LLAMACPP_USE_CUDA=0
+	#   make OFX_LLAMACPP_USE_CUDA=1
+	OFX_LLAMACPP_HAS_CUDA_LIB ?= $(wildcard $(OF_ADDONS_PATH)/ofxLlamaCpp/libs/llama.cpp/lib/linux64/libggml-cuda.a)
+	OFX_LLAMACPP_HAS_NVCC ?= $(shell command -v nvcc >/dev/null 2>&1 && echo 1)
+	OFX_LLAMACPP_HAS_GPU ?= $(shell command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1 && echo 1)
+	OFX_LLAMACPP_USE_CUDA ?= $(if $(and $(OFX_LLAMACPP_HAS_CUDA_LIB),$(OFX_LLAMACPP_HAS_NVCC),$(OFX_LLAMACPP_HAS_GPU)),1,0)
+	OFX_LLAMACPP_CUDA_HOME ?= $(if $(CUDA_HOME),$(CUDA_HOME),$(if $(CUDA_PATH),$(CUDA_PATH),$(shell command -v nvcc >/dev/null 2>&1 && dirname $$(dirname $$(command -v nvcc)))))
+	OFX_LLAMACPP_CUDA_LIB_DIR_1 ?= $(OFX_LLAMACPP_CUDA_HOME)/targets/x86_64-linux/lib
+	OFX_LLAMACPP_CUDA_LIB_DIR_2 ?= $(OFX_LLAMACPP_CUDA_HOME)/lib64
+	OFX_LLAMACPP_CUDART_DIR ?= $(shell ldconfig -p 2>/dev/null | awk '/libcudart\.so/{print $$NF; exit}' | xargs -r dirname)
+	OFX_LLAMACPP_CUBLAS_DIR ?= $(shell ldconfig -p 2>/dev/null | awk '/libcublas\.so/{print $$NF; exit}' | xargs -r dirname)
+
+	# any special flag that should be passed to the linker when using this addon, also used for system libraries with -lname
+	ADDON_LDFLAGS = -lpthread -fopenmp
+	ADDON_LIBS = libs/llama.cpp/lib/linux64/libllama.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-cpu.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-base.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcommon.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcpp-httplib.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-cuda.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-blas.a
+	ADDON_CPPFLAGS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),-DOFX_LLAMACPP_USE_CUDA)
+	ADDON_LIBS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),libs/llama.cpp/lib/linux64/libggml-cuda.a)
+	ADDON_LIBS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),libs/llama.cpp/lib/linux64/libggml-blas.a)
+	ADDON_LDFLAGS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),-L$(OFX_LLAMACPP_CUDA_LIB_DIR_1) -L$(OFX_LLAMACPP_CUDA_LIB_DIR_2) -L$(OFX_LLAMACPP_CUDART_DIR) -L$(OFX_LLAMACPP_CUBLAS_DIR))
+	ADDON_LDFLAGS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),-lcudart -lcublas -lcublasLt -lcuda)
 
 # --- Platform-specific configuration for MACOS ---
 osx:

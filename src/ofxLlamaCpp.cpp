@@ -15,7 +15,7 @@
 
 #ifdef __APPLE__
 #include "../libs/llama.cpp/ggml/include/ggml-metal.h"
-#else
+#elif defined(OFX_LLAMACPP_USE_CUDA)
 #include "../libs/llama.cpp/ggml/include/ggml-cuda.h"
 #endif
 
@@ -31,10 +31,8 @@ ofxLlamaCpp::ofxLlamaCpp() {
 
 #ifdef __APPLE__
     ggml_backend_register(ggml_backend_metal_reg());
-#else
-    // Conditionally register CUDA backend if GPU offload is supported
-    // Temporarily removing the conditional check to ensure registration happens
-    // if CUDA is compiled in.
+#elif defined(OFX_LLAMACPP_USE_CUDA)
+    // Register CUDA backend only when CUDA support is enabled at build time.
     ggml_backend_register(ggml_backend_cuda_reg());
     ggml_backend_dev_count(); // Force enumeration of CUDA devices
 #endif
