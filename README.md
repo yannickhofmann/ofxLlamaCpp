@@ -107,6 +107,7 @@ Please use models in GGUF, a binary format that is optimized for quick loading a
 
 *   Slow CPU inference with large models
 *   Increasing latency due to In-Context Memory
+*   In some cases the missing shader compiler glslc must be installed manually to use Vulkan with llama.cpp; see: [https://forum.openframeworks.cc/t/new-addon-release-ofxllamacpp](https://forum.openframeworks.cc/t/new-addon-release-ofxllamacpp)
 
 ## License
 
