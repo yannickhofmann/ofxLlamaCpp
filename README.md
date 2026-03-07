@@ -18,7 +18,8 @@ This makes it possible to integrate LLMs into creative coding projects, interact
 
 ofxLlamaCpp has been validated on:
 
-*   Ubuntu 24.04.3 LTS
+*   x86_64 (Ubuntu 24.04.3 LTS, Debian 12 & 13)
+*   ARM 64-bit (Raspberry Pi)
 *   macOS (Apple Silicon M2)
 *   openFrameworks:
     *   `of_v0.12.0_linux64gcc6_release`
