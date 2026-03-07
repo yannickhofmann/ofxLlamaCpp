@@ -17,9 +17,14 @@ echo "   GPU-Aware llama.cpp Build Script"
 echo "========================================="
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux (Ubuntu / general Linux)
-    DEST_DIR="lib/linux64"
-    echo "Detected OS: Linux"
+    # Linux (x86_64 and aarch64)
+    ARCH="$(uname -m)"
+    if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+        DEST_DIR="lib/linuxaarch64"
+    else
+        DEST_DIR="lib/linux64"
+    fi
+    echo "Detected OS: Linux ($ARCH)"
     echo "→ Checking for CUDA..."
 
     # Check CUDA toolkit presence
@@ -28,14 +33,34 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         CMAKE_FLAGS+=" -DGGML_CUDA=ON -DGGML_BLAS=ON"
     else
         echo "✖ CUDA not found."
-        echo "→ Checking for Vulkan SDK..."
-
-        if pkg-config --exists vulkan; then
-            echo "✔ Vulkan detected — enabling GGML_VULKAN"
-            CMAKE_FLAGS+=" -DGGML_VULKAN=ON"
+        if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+            # On linuxaarch64, Vulkan can fail with older distro Vulkan headers.
+            # Default to CPU unless explicitly requested:
+            #   OFX_LLAMACPP_ENABLE_VULKAN=1 ./build_llama_static.sh
+            if [[ "${OFX_LLAMACPP_ENABLE_VULKAN:-0}" == "1" ]]; then
+                echo "→ linuxaarch64: Vulkan explicitly enabled via OFX_LLAMACPP_ENABLE_VULKAN=1"
+                if pkg-config --exists vulkan && command -v glslc >/dev/null 2>&1; then
+                    echo "✔ Vulkan + glslc detected — enabling GGML_VULKAN"
+                    CMAKE_FLAGS+=" -DGGML_VULKAN=ON"
+                else
+                    echo "✖ Vulkan support incomplete (missing Vulkan SDK or glslc)."
+                    echo "⚠ Building CPU-only fallback!"
+                fi
+            else
+                echo "→ linuxaarch64: Vulkan disabled by default."
+                echo "  Set OFX_LLAMACPP_ENABLE_VULKAN=1 to try Vulkan."
+                echo "⚠ Building CPU-only fallback!"
+            fi
         else
-            echo "✖ Vulkan SDK not found."
-            echo "⚠ Building CPU-only fallback!"
+            echo "→ Checking for Vulkan SDK..."
+
+            if pkg-config --exists vulkan && command -v glslc >/dev/null 2>&1; then
+                echo "✔ Vulkan + glslc detected — enabling GGML_VULKAN"
+                CMAKE_FLAGS+=" -DGGML_VULKAN=ON"
+            else
+                echo "✖ Vulkan support incomplete (missing Vulkan SDK or glslc)."
+                echo "⚠ Building CPU-only fallback!"
+            fi
         fi
     fi
 

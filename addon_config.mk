@@ -65,6 +65,21 @@ linux64:
 	ADDON_LDFLAGS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),-L$(OFX_LLAMACPP_CUDA_LIB_DIR_1) -L$(OFX_LLAMACPP_CUDA_LIB_DIR_2) -L$(OFX_LLAMACPP_CUDART_DIR) -L$(OFX_LLAMACPP_CUBLAS_DIR))
 	ADDON_LDFLAGS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),-lcudart -lcublas -lcublasLt -lcuda)
 
+# --- Platform-specific configuration for LINUX (aarch64 / Raspberry Pi) ---
+linuxaarch64:
+	LLAMA_LIB_PATH = libs/llama.cpp/lib/linuxaarch64
+
+	# aarch64 builds are CPU-first by default.
+	ADDON_LDFLAGS = -lpthread -fopenmp
+
+	# Static libraries for linuxaarch64 - ORDER MATTERS!
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libllama.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-cpu.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-base.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libcommon.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libcpp-httplib.a
+
 # --- Platform-specific configuration for MACOS ---
 osx:
 	# Library path for macOS (assuming Apple Silicon arm64)
