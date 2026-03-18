@@ -15,6 +15,7 @@
 
 #include "../libs/llama.cpp/include/llama.h" // Includes the Llama.cpp library headers
 #include "../libs/llama.cpp/ggml/include/ggml-backend.h"
+#include "../libs/llama.cpp/tools/mtmd/mtmd.h"
 
 #include <thread>     // For multi-threading operations
 #include <mutex>      // For protecting shared data in multi-threaded environments
@@ -36,10 +37,14 @@ public:
     // Loads a Llama model from the specified path.
     // n_ctx defines the context size (how many tokens the model "remembers").
     bool loadModel(const std::string &path, int n_ctx = 2048);
+    // Loads a multimodal model with a separate mmproj GGUF for image understanding.
+    bool loadVisionModel(const std::string &modelPath, const std::string &mmprojPath, int n_ctx = 4096);
     // Unloads the currently loaded model and frees resources.
     void unload();
     // Checks if a model is currently loaded.
     bool isModelLoaded() const;
+    // Returns true when a multimodal projector is loaded alongside the text model.
+    bool isVisionModelLoaded() const;
 
     // Sets the number of layers to offload to the GPU.
     void setN_GpuLayers(int n_gpu_layers_val);
@@ -65,6 +70,8 @@ public:
     // Starts asynchronous text generation based on the given prompt.
     // maxTokens specifies the maximum number of new tokens to generate.
     void startGeneration(const std::string &prompt, int maxTokens = 200);
+    // Starts asynchronous multimodal generation with one image file.
+    void startVisionGeneration(const std::string &prompt, const std::string &imagePath, int maxTokens = 200);
     // Requests to stop the current asynchronous generation.
     void stopGeneration();
     // Checks if text generation is currently in progress.
@@ -147,6 +154,10 @@ public:
 private:
     // Internal function to build and configure the Llama sampler.
     void buildSampler();
+    bool initializeContext(int n_ctx_req);
+    std::string formatVisionPrompt(const std::string &prompt) const;
+    bool processTextPrompt(const std::string &prompt, int &n_past);
+    bool processVisionPrompt(const std::string &prompt, const std::string &imagePath, int &n_past);
     // The main loop for asynchronous text generation, run in a separate thread.
     void generationLoop();
     // Checks if any of the defined stop sequences have been generated.
@@ -156,9 +167,11 @@ private:
     // Pointers to the Llama model and context, managed by the Llama.cpp library.
     llama_model *model = nullptr;
     llama_context *ctx = nullptr;
+    mtmd_context *visionCtx = nullptr;
 
     // Path to the loaded model file.
     std::string modelPath;
+    std::string mmprojPath;
 
     // The context size (maximum number of tokens the model can process at once).
     int contextSize = 2048;
@@ -180,6 +193,8 @@ private:
     std::string pendingOut;
     // Stores the prompt currently being processed.
     std::string currentPrompt;
+    // Optional image path for multimodal generation.
+    std::string currentImagePath;
 
     // Sampler settings (parameters controlling how text is generated).
     float temperature = 0.8f;
@@ -210,4 +225,3 @@ private:
     ggml_backend_t cpu_backend = nullptr;
     ggml_backend_t cuda_backend = nullptr;
 };
-

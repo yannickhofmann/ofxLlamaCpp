@@ -12,6 +12,7 @@
 #include "ofxLlamaCpp.h" // Include the main header for ofxLlama
 #include "ofLog.h"    // For OpenFrameworks logging utilities
 #include "../libs/llama.cpp/ggml/include/ggml-cpu.h"
+#include "../libs/llama.cpp/tools/mtmd/mtmd-helper.h"
 
 #ifdef __APPLE__
 #include "../libs/llama.cpp/ggml/include/ggml-metal.h"
@@ -82,30 +83,33 @@ bool ofxLlamaCpp::loadModel(const std::string& path, int n_ctx_req) {
     }
 
     modelPath = path; // Store the path of the loaded model
+    mmprojPath.clear();
+    return initializeContext(n_ctx_req);
+}
 
-    // Set default context parameters.
-    llama_context_params cp = llama_context_default_params();
-    cp.n_ctx = n_ctx_req; // Set the requested context size
-    cp.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO; // Use auto flash attention type
-    cp.n_batch = 512; // Batch size for parallel processing
-    cp.n_ubatch = 1; // Unbatch size
-    cp.n_threads = std::thread::hardware_concurrency(); // Use all available hardware threads
-    cp.offload_kqv = this->offload_kqv; // Set offload_kqv from member variable
-
-    // Initialize the Llama context from the loaded model.
-    ctx = llama_init_from_model(model, cp);
-
-    if (!ctx) {
-        ofLogError("ofxLlamaCpp") << "Failed creating context.";
-        llama_model_free(model); // Free model if context creation fails
-        model = nullptr;
+// --------------------------------------------------------------
+// Loads a multimodal model and its associated mmproj file.
+bool ofxLlamaCpp::loadVisionModel(const std::string& modelPath, const std::string& mmprojPath, int n_ctx_req) {
+    if (!loadModel(modelPath, n_ctx_req)) {
         return false;
     }
 
-    contextSize = n_ctx_req; // Store the actual context size
+    mtmd_context_params mparams = mtmd_context_params_default();
+    mparams.use_gpu = n_gpu_layers > 0;
+    mparams.print_timings = false;
+    mparams.n_threads = std::max(1u, std::thread::hardware_concurrency());
+    mparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+    mparams.warmup = false;
 
-    buildSampler(); // Initialize the token sampler with current settings
-    return true; // Model loaded successfully
+    visionCtx = mtmd_init_from_file(mmprojPath.c_str(), model, mparams);
+    if (!visionCtx) {
+        ofLogError("ofxLlamaCpp") << "Failed to load mmproj: " << mmprojPath;
+        unload();
+        return false;
+    }
+
+    this->mmprojPath = mmprojPath;
+    return true;
 }
 
 // --------------------------------------------------------------
@@ -115,14 +119,26 @@ void ofxLlamaCpp::unload() {
         llama_sampler_free(sampler); // Free the sampler if it exists
         sampler = nullptr;
     }
+    if (visionCtx) {
+        mtmd_free(visionCtx);
+        visionCtx = nullptr;
+    }
     if (ctx)   { llama_free(ctx);   ctx = nullptr; }     // Free the context
     if (model) { llama_model_free(model); model = nullptr; } // Free the model
+    currentImagePath.clear();
+    mmprojPath.clear();
 }
 
 // --------------------------------------------------------------
 // Checks if a Llama model and its context are currently loaded.
 bool ofxLlamaCpp::isModelLoaded() const {
     return model != nullptr && ctx != nullptr;
+}
+
+// --------------------------------------------------------------
+// Checks if the currently loaded model also has multimodal support active.
+bool ofxLlamaCpp::isVisionModelLoaded() const {
+    return isModelLoaded() && visionCtx != nullptr;
 }
 
 // --------------------------------------------------------------
@@ -372,6 +388,7 @@ void ofxLlamaCpp::startGeneration(const std::string& prompt, int maxTokens) {
     {
         std::lock_guard<std::mutex> lock(mtx); // Protect shared variables with a mutex
         currentPrompt = prompt;              // Store the prompt for the worker thread
+        currentImagePath.clear();
         pendingOut.clear();                  // Clear any previous output
         max_gen_tokens = maxTokens;          // Set the maximum tokens for this generation
         generating = true;                   // Mark generation as active
@@ -379,6 +396,26 @@ void ofxLlamaCpp::startGeneration(const std::string& prompt, int maxTokens) {
     }
 
     // Launch the generation loop in a new thread.
+    worker = std::thread(&ofxLlamaCpp::generationLoop, this);
+}
+
+// --------------------------------------------------------------
+// Initiates asynchronous multimodal generation using a single image.
+void ofxLlamaCpp::startVisionGeneration(const std::string& prompt, const std::string& imagePath, int maxTokens) {
+    if (!ctx || !visionCtx) return;
+
+    stopGeneration();
+
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        currentPrompt = prompt;
+        currentImagePath = imagePath;
+        pendingOut.clear();
+        max_gen_tokens = maxTokens;
+        generating = true;
+        requestStop = false;
+    }
+
     worker = std::thread(&ofxLlamaCpp::generationLoop, this);
 }
 
@@ -410,6 +447,135 @@ std::string ofxLlamaCpp::getNewOutput() {
 }
 
 // --------------------------------------------------------------
+// Creates the llama context with the current runtime parameters.
+bool ofxLlamaCpp::initializeContext(int n_ctx_req) {
+    llama_context_params cp = llama_context_default_params();
+    cp.n_ctx = n_ctx_req;
+    cp.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+    cp.n_batch = 512;
+    cp.n_ubatch = 512;
+    cp.n_threads = std::max(1u, std::thread::hardware_concurrency());
+    cp.offload_kqv = this->offload_kqv;
+
+    ctx = llama_init_from_model(model, cp);
+
+    if (!ctx) {
+        ofLogError("ofxLlamaCpp") << "Failed creating context.";
+        llama_model_free(model);
+        model = nullptr;
+        return false;
+    }
+
+    contextSize = n_ctx_req;
+    buildSampler();
+    return true;
+}
+
+// --------------------------------------------------------------
+// Formats a single-turn Vicuna prompt with the multimodal marker.
+std::string ofxLlamaCpp::formatVisionPrompt(const std::string& prompt) const {
+    const std::string userContent = std::string(mtmd_default_marker()) + "\n" + prompt;
+    llama_chat_message messages[] = {
+        {"user", userContent.c_str()}
+    };
+
+    int32_t needed = llama_chat_apply_template("vicuna", messages, 1, true, nullptr, 0);
+    if (needed <= 0) {
+        return userContent;
+    }
+
+    std::vector<char> buffer(static_cast<size_t>(needed) + 1, '\0');
+    needed = llama_chat_apply_template("vicuna", messages, 1, true, buffer.data(), static_cast<int32_t>(buffer.size()));
+    if (needed <= 0) {
+        return userContent;
+    }
+
+    return std::string(buffer.data(), static_cast<size_t>(needed));
+}
+
+// --------------------------------------------------------------
+// Evaluates a plain text prompt into the llama context.
+bool ofxLlamaCpp::processTextPrompt(const std::string& prompt, int& n_past) {
+    auto tokens = tokenize(prompt);
+    n_past = 0;
+
+    while (n_past < static_cast<int>(tokens.size())) {
+        int n_eval = std::min(static_cast<int>(tokens.size()) - n_past, static_cast<int>(llama_n_batch(ctx)));
+        llama_batch batch = llama_batch_init(n_eval, 0, 1);
+
+        for (int i = 0; i < n_eval; ++i) {
+            batch.token[i] = tokens[n_past + i];
+            batch.pos[i] = n_past + i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = 0;
+            batch.logits[i] = (n_past + i == static_cast<int>(tokens.size()) - 1);
+        }
+        batch.n_tokens = n_eval;
+
+        if (llama_decode(ctx, batch) != 0) {
+            ofLogError("ofxLlamaCpp") << "llama_decode failed during prompt processing";
+            llama_batch_free(batch);
+            return false;
+        }
+
+        llama_batch_free(batch);
+        n_past += n_eval;
+    }
+
+    return true;
+}
+
+// --------------------------------------------------------------
+// Evaluates a multimodal prompt with one image into the llama context.
+bool ofxLlamaCpp::processVisionPrompt(const std::string& prompt, const std::string& imagePath, int& n_past) {
+    const std::string formattedPrompt = formatVisionPrompt(prompt);
+
+    mtmd_bitmap * bitmap = mtmd_helper_bitmap_init_from_file(visionCtx, imagePath.c_str());
+    if (!bitmap) {
+        ofLogError("ofxLlamaCpp") << "Failed to load image: " << imagePath;
+        return false;
+    }
+
+    mtmd_input_chunks * chunks = mtmd_input_chunks_init();
+    mtmd_input_text text;
+    text.text = formattedPrompt.c_str();
+    text.add_special = false;
+    text.parse_special = true;
+
+    const mtmd_bitmap * bitmaps[] = { bitmap };
+    int32_t tokenized = mtmd_tokenize(visionCtx, chunks, &text, bitmaps, 1);
+    if (tokenized != 0) {
+        ofLogError("ofxLlamaCpp") << "mtmd_tokenize failed with code " << tokenized;
+        mtmd_input_chunks_free(chunks);
+        mtmd_bitmap_free(bitmap);
+        return false;
+    }
+
+    llama_pos new_n_past = 0;
+    int32_t evalRes = mtmd_helper_eval_chunks(
+        visionCtx,
+        ctx,
+        chunks,
+        0,
+        0,
+        llama_n_batch(ctx),
+        true,
+        &new_n_past
+    );
+
+    mtmd_input_chunks_free(chunks);
+    mtmd_bitmap_free(bitmap);
+
+    if (evalRes != 0) {
+        ofLogError("ofxLlamaCpp") << "mtmd_helper_eval_chunks failed with code " << evalRes;
+        return false;
+    }
+
+    n_past = static_cast<int>(new_n_past);
+    return true;
+}
+
+// --------------------------------------------------------------
 // The main generation loop, executed in a separate thread.
 // This function handles tokenizing the prompt, processing it, and then
 // iteratively generating new tokens until maxTokens is reached or a stop word is encountered.
@@ -419,40 +585,22 @@ void ofxLlamaCpp::generationLoop() {
     resetContext();
 
     std::string prompt;
+    std::string imagePath;
     {
         std::lock_guard<std::mutex> lock(mtx); // Access currentPrompt safely
         prompt = currentPrompt;
+        imagePath = currentImagePath;
     }
 
-    auto tokens = tokenize(prompt); // Tokenize the input prompt
+    int n_past = 0;
+    const bool isVisionRun = !imagePath.empty();
+    const bool promptOk = isVisionRun
+        ? processVisionPrompt(prompt, imagePath, n_past)
+        : processTextPrompt(prompt, n_past);
 
-    int n_past = 0; // Tracks the number of tokens processed so far
-    // Process the prompt tokens in batches.
-    while (n_past < tokens.size()) {
-        int n_eval = std::min((int)tokens.size() - n_past, (int)llama_n_batch(ctx)); // Determine batch size
-
-        // Prepare a llama_batch for evaluation.
-        llama_batch batch = llama_batch_init(n_eval, 0, 1);
-        
-        for (int i = 0; i < n_eval; ++i) {
-            batch.token[i]      = tokens[n_past + i]; // Add token
-            batch.pos[i]        = n_past + i;        // Set position in context
-            batch.n_seq_id[i]   = 1;
-            batch.seq_id[i][0]  = 0;                 // Sequence ID
-            batch.logits[i]     = (n_past + i == tokens.size() - 1); // Request logits for the last token in batch
-        }
-        batch.n_tokens = n_eval; // Number of tokens in this batch
-
-        // Decode the batch of tokens.
-        if (llama_decode(ctx, batch) != 0) {
-            ofLogError("ofxLlamaCpp") << "llama_decode failed during prompt processing";
-            llama_batch_free(batch);
-            generating = false;
-            return;
-        }
-        
-        n_past += n_eval; // Update past token count
-        llama_batch_free(batch); // Free batch resources
+    if (!promptOk) {
+        generating = false;
+        return;
     }
 
     std::string generated; // String to accumulate all generated tokens
