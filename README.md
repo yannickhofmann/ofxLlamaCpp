@@ -16,12 +16,10 @@ This makes it possible to integrate LLMs into creative coding projects, interact
 
 ## Tested Environments
 
-This dev branch of ofxLlamaCpp has been validated on:
+ofxLlamaCpp has been validated on:
 
-*   x86_64 (Ubuntu 24.04.3 LTS, Debian 12 & 13)
-*   ARM 64-bit (Raspberry Pi)
+*   Ubuntu 24.04.3 LTS
 *   macOS (Apple Silicon M2)
-*   Windows 11 (tested CPU-only)
 *   openFrameworks:
     *   `of_v0.12.0_linux64gcc6_release`
     *   `of_v0.12.1_linux64_gcc6_release`
@@ -38,27 +36,22 @@ This dev branch of ofxLlamaCpp has been validated on:
 
 ### Build Tool Dependency
 
-**Linux and macOS**
-
 * **CMake**
-    is required for configuring and building the external **llama.cpp** and **minja.hpp** libraries that this addon utilizes.
+    is required for configuring and building the external **llama.cpp** and **minja.hpp** libraries that this addon utilizes. CMake is cross-platform and must be installed before
+    attempting to build these libraries
 
-**Ubuntu/Debian:**
+**Ubuntu / Debian (Linux):**
 
 ```bash
 sudo apt update
 sudo apt install cmake
 ```
 
-**macOS:**
+**macOS (OS X):**
 
 ```bash
 brew install cmake
 ```
-
-**Windows**
-
-The openFrameworks Project Generator is used instead to create a Microsoft Visual Studio project.
 
 ### Example Dependencies
 
@@ -68,32 +61,22 @@ The openFrameworks Project Generator is used instead to create a Microsoft Visua
 
 ## Setup
 
-**Linux and macOS**
-
-Navigate to the `scripts` folder and run:
+In the `scripts` folder, you will find a shell script to automatically clone the proper libraries. Navigate to the `scripts` folder and execute:
 ```bash
-python install_llama.py
+chmod +x setup_libs.sh
+./setup_libs.sh
 ```
 
-`install_llama.py` uses the shell scripts (`setup_libs.sh` and `build_llama_static.sh`).
-
-**Windows**
-
-Run `python install_llama.py` from the `x64 Native Tools Command Prompt for VS`.
-
-`install_llama.py` automatically runs the PowerShell scripts (`setup_libs.ps1` and `build_llama_static.ps1`).
-
-The build-related files are created outside the `ofxLlamaCpp` folder in `addons/ofxLlamaCpp_build/...` (on Windows, for example, in `addons/ofxLlamaCpp_build/windows/build`). These files can be deleted when no longer needed. If you want to remove them directly via the installer, run:
+You will have to build `llama.cpp` as a static pre-compiled library. In the `scripts` folder, you will find a shell script to automatically build `llama.cpp` as a static pre-compiled library. Navigate to the `scripts` folder and execute:
 ```bash
-python install_llama.py --purge-all
+chmod +x build_llama_static.sh
+./build_llama_static.sh
 ```
 
 
 ### Build and Run the Examples
 
 Once the static library is compiled and the GGUF models are in place, you can build and run the example projects.
-
-**Linux and macOS**
 
 Navigate into the example folder you wish to build (e.g., `example_chat`):
 
@@ -112,10 +95,6 @@ Run the release executable:
 ```bash
 make RunRelease
 ```
-
-**Windows**
-
-Create the example project with the openFrameworks Project Generator and build/run it using Microsoft Visual Studio.
 
 
 ## Models
