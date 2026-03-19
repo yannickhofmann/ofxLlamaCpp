@@ -43,14 +43,14 @@ This dev branch of ofxLlamaCpp has been validated on:
 * **CMake**
     is required for configuring and building the external **llama.cpp** and **minja.hpp** libraries that this addon utilizes.
 
-**Ubuntu/Debian:**
+**Ubuntu/Debian**
 
 ```bash
 sudo apt update
 sudo apt install cmake
 ```
 
-**macOS:**
+**macOS**
 
 ```bash
 brew install cmake
