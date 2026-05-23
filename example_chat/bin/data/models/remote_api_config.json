@@ -1,0 +1,12 @@
+{
+  "api_type": "",
+  "api_endpoint": "",
+  "api_key": "",
+  "api_version": "",
+  "models_url": "",
+  "preferred_model": "",
+  "system_prompt_mode": "user",
+  "system_prompt": "",
+  "strip_reasoning": true,
+  "extra_body": {}
+}
