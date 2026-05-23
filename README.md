@@ -12,14 +12,18 @@ ofxLlamaCpp brings large-language-model inference into the openFrameworks ecosys
 
 This makes it possible to integrate LLMs into creative coding projects, interactive installations, experimental interfaces, and real-time generative applications—all running locally without Python or external dependencies.
 
+In addition to local GGUF inference, the examples `example_basics` and `example_chat` can also talk to remote OpenAI-compatible APIs. This includes self-hosted or proxied endpoints such as LiteLLM as well as Azure OpenAI deployments.
+
 ![ofxLlamaCpp](https://github.com/user-attachments/assets/1eff6ff2-d54f-4cec-87d6-9fa6e923d5ee)
 
 ## Tested Environments
 
-ofxLlamaCpp has been validated on:
+This dev branch of ofxLlamaCpp has been validated on:
 
-*   Ubuntu 24.04.3 LTS
+*   x86_64 (Ubuntu 24.04.3 LTS, Debian 12 & 13)
+*   ARM 64-bit (Raspberry Pi)
 *   macOS (Apple Silicon M2)
+*   Windows 11 (tested CPU-only)
 *   openFrameworks:
     *   `of_v0.12.0_linux64gcc6_release`
     *   `of_v0.12.1_linux64_gcc6_release`
@@ -36,22 +40,27 @@ ofxLlamaCpp has been validated on:
 
 ### Build Tool Dependency
 
-* **CMake**
-    is required for configuring and building the external **llama.cpp** and **minja.hpp** libraries that this addon utilizes. CMake is cross-platform and must be installed before
-    attempting to build these libraries
+**Linux and macOS**
 
-**Ubuntu / Debian (Linux):**
+* **CMake**
+    is required for configuring and building the external **llama.cpp** and **minja.hpp** libraries that this addon utilizes.
+
+**Ubuntu/Debian**
 
 ```bash
 sudo apt update
 sudo apt install cmake
 ```
 
-**macOS (OS X):**
+**macOS**
 
 ```bash
 brew install cmake
 ```
+
+**Windows**
+
+The openFrameworks Project Generator is used instead to create a Microsoft Visual Studio project.
 
 ### Example Dependencies
 
@@ -61,22 +70,32 @@ brew install cmake
 
 ## Setup
 
-In the `scripts` folder, you will find a shell script to automatically clone the proper libraries. Navigate to the `scripts` folder and execute:
+**Linux and macOS**
+
+Navigate to the `scripts` folder and run:
 ```bash
-chmod +x setup_libs.sh
-./setup_libs.sh
+python install_llama.py
 ```
 
-You will have to build `llama.cpp` as a static pre-compiled library. In the `scripts` folder, you will find a shell script to automatically build `llama.cpp` as a static pre-compiled library. Navigate to the `scripts` folder and execute:
+`install_llama.py` uses the shell scripts (`setup_libs.sh` and `build_llama_static.sh`).
+
+**Windows**
+
+Run `python install_llama.py` from the `x64 Native Tools Command Prompt for VS`.
+
+`install_llama.py` automatically runs the PowerShell scripts (`setup_libs.ps1` and `build_llama_static.ps1`).
+
+The build-related files are created outside the `ofxLlamaCpp` folder in `addons/ofxLlamaCpp_build/...` (on Windows, for example, in `addons/ofxLlamaCpp_build/windows/build`). These files can be deleted when no longer needed. If you want to remove them directly via the installer, run:
 ```bash
-chmod +x build_llama_static.sh
-./build_llama_static.sh
+python install_llama.py --purge-all
 ```
 
 
 ### Build and Run the Examples
 
 Once the static library is compiled and the GGUF models are in place, you can build and run the example projects.
+
+**Linux and macOS**
 
 Navigate into the example folder you wish to build (e.g., `example_chat`):
 
@@ -95,6 +114,29 @@ Run the release executable:
 ```bash
 make RunRelease
 ```
+
+**Windows**
+
+Create the example project with the openFrameworks Project Generator and build/run it using Microsoft Visual Studio.
+
+### Remote API Support in the Examples
+
+`example_basics` and `example_chat` support two backend modes:
+
+* `Local`: loads GGUF models from `bin/data/models`
+* `Remote`: sends requests to an OpenAI-compatible HTTP API
+
+Remote mode is configured through `bin/data/models/remote_api_config.json`.
+
+This allows the examples to work not only with local llama.cpp models, but also with:
+
+* LiteLLM or other OpenAI-compatible gateways
+* Azure OpenAI chat-completions endpoints
+* compatible self-hosted APIs that expose `/v1/chat/completions` and, when available, `/v1/models`
+
+The JSON config can be adapted to your target backend by setting values such as `api_type`, `api_endpoint`, `api_key`, `models_url`, and `preferred_model`.
+
+In `example_chat`, the remote model list is loaded dynamically from the configured endpoint when the backend is switched to `Remote`.
 
 
 ## Models

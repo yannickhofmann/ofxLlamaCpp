@@ -1,15 +1,27 @@
 #!/bin/bash
 
-# This script clones the required libraries for ofxLlama.
+set -euo pipefail
 
-# The target directory for the libraries, relative to the script location.
-LIBS_DIR="$(dirname "$0")/../libs"
+# This script clones the required libraries for ofxLlamaCpp.
 
-# Create the libs directory if it doesn't exist.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIBS_DIR="$SCRIPT_DIR/../libs"
+
 mkdir -p "$LIBS_DIR"
 
-# Clone the repositories.
-git clone https://github.com/google/minja "$LIBS_DIR/minja"
-git clone https://github.com/ggml-org/llama.cpp "$LIBS_DIR/llama.cpp"
+clone_if_missing() {
+    local url=$1
+    local target=$2
 
-echo "Libraries cloned successfully."
+    if [[ -d "$target" ]]; then
+        echo "Skipping $(basename "$target"): already exists at $target"
+        return
+    fi
+
+    git clone "$url" "$target"
+}
+
+clone_if_missing https://github.com/google/minja "$LIBS_DIR/minja"
+clone_if_missing https://github.com/ggml-org/llama.cpp "$LIBS_DIR/llama.cpp"
+
+echo "Libraries prepared successfully."

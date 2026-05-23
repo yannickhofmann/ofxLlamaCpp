@@ -1,5 +1,5 @@
 # ofxLlamaCpp addon_config.mk
-# Cross-platform configuration for Linux and macOS
+# Cross-platform configuration for Linux, macOS, and Windows
 
 meta:
 	ADDON_NAME = ofxLlamaCpp
@@ -12,20 +12,24 @@ common:
 	# Addon dependencies
 	# ADDON_DEPENDENCIES = 
 
-	# Include search paths - platform-independent
+	# Keep the PG surface minimal: only stable public include roots.
 	ADDON_INCLUDES += libs/llama.cpp/include
 	ADDON_INCLUDES += libs/llama.cpp/ggml/include
+	ADDON_INCLUDES += libs/llama.cpp/tools/mtmd
 
-	ADDON_INCLUDES += libs/minja/include
-	# Prevent OF's automatic include parser from adding the full vendored trees.
-	# Keep only explicit include roots above to avoid oversized command lines.
+	# Prevent OF's automatic include parser from crawling vendored trees.
 	ADDON_INCLUDES_EXCLUDE += libs/llama.cpp
 	ADDON_INCLUDES_EXCLUDE += libs/llama.cpp/%
 	ADDON_INCLUDES_EXCLUDE += libs/minja
 	ADDON_INCLUDES_EXCLUDE += libs/minja/%
+	ADDON_SOURCES_EXCLUDE += libs/llama.cpp/%
+	ADDON_SOURCES_EXCLUDE += libs/minja/%
 
 	# Source files
 	ADDON_SOURCES = src/ofxLlamaCpp.cpp
+	ADDON_SOURCES += src/IInferenceProvider.cpp
+	ADDON_SOURCES += src/RemoteAPIProvider.cpp
+	ADDON_SOURCES += src/BackendSelector.cpp
 	ADDON_SOURCES += libs/llama.cpp/ggml/src/gguf.cpp
 	ADDON_SOURCES += libs/llama.cpp/ggml/src/ggml-opt.cpp
 	ADDON_SOURCES += libs/llama.cpp/ggml/src/ggml-backend-reg.cpp
@@ -53,12 +57,12 @@ linux64:
 
 	# any special flag that should be passed to the linker when using this addon, also used for system libraries with -lname
 	ADDON_LDFLAGS = -lpthread -fopenmp
+	ADDON_INCLUDES += libs/minja/include
 	ADDON_LIBS = libs/llama.cpp/lib/linux64/libllama.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-cpu.a
 	ADDON_LIBS += libs/llama.cpp/lib/linux64/libggml-base.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcommon.a
-	ADDON_LIBS += libs/llama.cpp/lib/linux64/libcpp-httplib.a
+	ADDON_LIBS += libs/llama.cpp/lib/linux64/libmtmd.a
 	ADDON_CPPFLAGS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),-DOFX_LLAMACPP_USE_CUDA)
 	ADDON_LIBS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),libs/llama.cpp/lib/linux64/libggml-cuda.a)
 	ADDON_LIBS += $(if $(filter 1,$(OFX_LLAMACPP_USE_CUDA)),libs/llama.cpp/lib/linux64/libggml-blas.a)
@@ -71,14 +75,14 @@ linuxaarch64:
 
 	# aarch64 builds are CPU-first by default.
 	ADDON_LDFLAGS = -lpthread -fopenmp
+	ADDON_INCLUDES += libs/minja/include
 
 	# Static libraries for linuxaarch64 - ORDER MATTERS!
-	ADDON_LIBS += $(LLAMA_LIB_PATH)/libllama.a
+	ADDON_LIBS = $(LLAMA_LIB_PATH)/libllama.a
 	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-cpu.a
 	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml.a
 	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-base.a
-	ADDON_LIBS += $(LLAMA_LIB_PATH)/libcommon.a
-	ADDON_LIBS += $(LLAMA_LIB_PATH)/libcpp-httplib.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libmtmd.a
 
 # --- Platform-specific configuration for MACOS ---
 osx:
@@ -86,6 +90,7 @@ osx:
 	LLAMA_LIB_PATH = libs/llama.cpp/lib/osx-arm64
 	
 	# Compiler flags for macOS to enable Metal and Accelerate
+	ADDON_INCLUDES += libs/minja/include
 	ADDON_CPPFLAGS += -DGGML_USE_METAL -DGGML_METAL_NDEBUG -DGGML_USE_ACCELERATE
 
 	# Linker flags for macOS
@@ -98,8 +103,7 @@ osx:
 	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-cpu.a
 	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml.a
 	ADDON_LIBS += $(LLAMA_LIB_PATH)/libggml-base.a
-	ADDON_LIBS += $(LLAMA_LIB_PATH)/libcommon.a
-	ADDON_LIBS += $(LLAMA_LIB_PATH)/libcpp-httplib.a
+	ADDON_LIBS += $(LLAMA_LIB_PATH)/libmtmd.a
 
 	# System Frameworks for macOS
 	ADDON_LIBS += -framework Accelerate
@@ -107,3 +111,23 @@ osx:
 	ADDON_LIBS += -framework Metal
 	ADDON_LIBS += -framework MetalKit
 	ADDON_LIBS += -framework CoreGraphics
+
+# --- Platform-specific configuration for WINDOWS / Visual Studio ---
+vs:
+	# Reset Unix-specific flags from the common section for MSVC.
+	ADDON_CPPFLAGS = -DGGML_SCHED_MAX_COPIES=4
+	ADDON_CPPFLAGS += /I..\libs\llama.cpp\include
+	ADDON_CPPFLAGS += /I..\libs\llama.cpp\ggml\include
+	ADDON_CPPFLAGS += /I..\libs\llama.cpp\tools\mtmd
+
+	# On Windows we only compile the addon wrapper and link the prebuilt libs.
+	ADDON_SOURCES = src/ofxLlamaCpp.cpp
+	ADDON_SOURCES += src/IInferenceProvider.cpp
+	ADDON_SOURCES += src/RemoteAPIProvider.cpp
+	ADDON_SOURCES += src/BackendSelector.cpp
+
+	ADDON_LIBS += libs/llama.cpp/lib/vs/$(Configuration)/llama.lib
+	ADDON_LIBS += libs/llama.cpp/lib/vs/$(Configuration)/ggml.lib
+	ADDON_LIBS += libs/llama.cpp/lib/vs/$(Configuration)/ggml-cpu.lib
+	ADDON_LIBS += libs/llama.cpp/lib/vs/$(Configuration)/ggml-base.lib
+	ADDON_LIBS += libs/llama.cpp/lib/vs/$(Configuration)/mtmd.lib

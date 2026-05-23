@@ -1,0 +1,4 @@
+Place a copy of llava-v1.6-mistral-7b.Q4_K_M.gguf in this folder:
+https://huggingface.co/cjpais/llava-1.6-mistral-7b-gguf/resolve/main/llava-v1.6-mistral-7b.Q4_K_M.gguf
+Also place a copy of the corresponding mmproj-model-f16.gguf in this folder:
+https://huggingface.co/cjpais/llava-1.6-mistral-7b-gguf/resolve/main/mmproj-model-f16.gguf
