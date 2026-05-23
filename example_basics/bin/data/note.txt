@@ -1,0 +1,2 @@
+Place a copy of Teuken-7B-instruct-commercial-v0.4.Q4_K_M.gguf in this folder:
+https://huggingface.co/beansandbytes/Teuken-7B-instruct-commercial-v0.4-Q4_K_M-GGUF/resolve/main/teuken-7b-instruct-commercial-v0.4-q4_k_m.gguf
